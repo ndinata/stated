@@ -16,6 +16,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Browsing" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Browsing> {
         // This is the only entry point to the flow, starting with "Browsing".
         pub fn visit_site() -> Self {
@@ -45,6 +48,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Shopping" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Shopping> {
         // "Shopping" -> "Shopping"
         pub fn add_item(mut self, item: u8) -> Self {
@@ -82,6 +88,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Checkout" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Checkout> {
         // "Checkout" -> "Shopping"
         pub fn cancel_checkout(self) -> Customer<Shopping> {

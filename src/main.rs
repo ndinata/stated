@@ -1,13 +1,13 @@
 use stated::online_shop::Customer;
 
 fn main() {
-    // This enables the transition `Browsing` -> `Left` via `.leave()`
+    // This enables the transition `Browsing` -> `Left` via `leave()`
     let has_sudden_change_of_plan = false;
 
-    // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
+    // This enables the transition `Shopping` -> `Browsing` via `clear_cart()`
     let is_using_mums_credit_card = false;
 
-    // This enables the transition `Checkout` -> `Shopping` via `.cancel_checkout()`
+    // This enables the transition `Checkout` -> `Shopping` via `cancel_checkout()`
     let forgot_my_wallet = false;
 
     let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];

@@ -16,25 +16,25 @@ concept in Rust v1.70.
 - [Results](#results)
   - [Valid state transitions](#valid-state-transitions)
   - [Invalid state transitions](#invalid-state-transitions)
+- [Outro](#outro)
 - [Readings](#readings)
 
 ## Motivation and context
 
 ### Why?
 
-When I first encountered [SPARK Ada](https://www.adacore.com/about-spark) in my uni class on high-integrity systems
-engineering, I was amazed by some of the property guarantees that its static analysis could provide with its "ghost
-code" annotations. Around this time I was also starting to look into Rust, notorious for its explicit ownership model
-and strong type system, and these experiences solidified my belief that we should be able to encode as many desirable
-properties and assumptions of a system as possible into source code that our tools (type checker, linter, compiler etc.)
-can verify for us statically: either during write time or build/compile time.
+When I first encountered [SPARK Ada](https://www.adacore.com/about-spark) in a uni class on high-integrity systems,
+I was amazed by some of the property guarantees that static analysis could provide with its "ghost code"
+annotations. Things that would normally only get caught by a comprehensive test suite in languages like JS
+could be detected by SPARK _before_ the program is even run, which was awesome! Ever since then I've developed
+an interest in ways to encode as many program assumptions and constraints as possible at the type system
+level, so that they can be statically enforced.
 
 Fast forward to a more recent time, I was reading about
 [how to link Rust code with C++ code](https://docs.rust-embedded.org/book/interoperability/rust-with-c.html)
 and noticed the ["Static Guarantees"](https://docs.rust-embedded.org/book/static-guarantees/index.html) section of
 the document. I then read the section on "typestates" and how the pattern can be used to enforce valid state
-transitions... at compile time!! Being the fan of static guarantees that I am, I of course had to play around
-with it :\)
+transitions... at compile time!! I wanted to test out its usage in a real (but simple) program, so here it is :\)
 
 ### What?
 
@@ -75,6 +75,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Browsing" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Browsing> {
         // This is the only entry point to the flow, starting with "Browsing".
         pub fn visit_site() -> Self {
@@ -104,6 +107,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Shopping" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Shopping> {
         // "Shopping" -> "Shopping"
         pub fn add_item(mut self, item: u8) -> Self {
@@ -141,6 +147,9 @@ pub mod online_shop {
     }
 
     // This contains the only transitions allowed from the "Checkout" state.
+    // The methods take `self` and not `&self` to disable reusing of the value
+    // after the method call. If the value is meant to be reused, the methods can
+    // return an instance of `Self`.
     impl Customer<Checkout> {
         // "Checkout" -> "Shopping"
         pub fn cancel_checkout(self) -> Customer<Shopping> {
@@ -169,13 +178,13 @@ pub mod online_shop {
 use stated::online_shop::Customer;
 
 fn main() {
-    // This enables the transition `Browsing` -> `Left` via `.leave()`
+    // This enables the transition `Browsing` -> `Left` via `leave()`
     let has_sudden_change_of_plan = false;
 
-    // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
+    // This enables the transition `Shopping` -> `Browsing` via `clear_cart()`
     let is_using_mums_credit_card = false;
 
-    // This enables the transition `Checkout` -> `Shopping` via `.cancel_checkout()`
+    // This enables the transition `Checkout` -> `Shopping` via `cancel_checkout()`
     let forgot_my_wallet = false;
 
     let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];
@@ -263,6 +272,84 @@ the `return;` statements in the `if` blocks ensure that we only ever:
 - `cancel_checkout()` **OR** `finalise_payment()` to leave the "Checkout" state
 
 ### Invalid state transitions
+
+Because methods are implemented on specific typestates (`Customer<Browsing>`,
+`Customer<Shopping>` etc.), a customer who, for example, is "Browsing" doesn't have
+access to methods of the other states, as shown in the picture below. This prevents
+bugs where a state uses a transition that is not defined for it!
+
+![only_self_self_impl_methods](./only_impl_methods.png)
+
+We also mentioned earlier the `return;` statements ensure that state transitions are exclusive
+of one another. To make the code _not_ compile, an easy way is removing the `return;`s.
+
+```rust
+    // Removing the first `return;` makes the program no longer compile. This is
+    // because `leave()` consumes `self`, which ensures that we can no longer use
+    // `browsing` after we call `leave()` on it. No accidental adding of item after
+    // the program has left that state, pretty cool!
+    let mut browsing = Customer::visit_site();
+    if has_sudden_change_of_plan {
+        browsing.leave();
+    }
+
+    // This line complains about use of moved value `browsing`.
+    let mut shopping = browsing.add_item(*first);
+```
+
+```rust
+    // Removing the second `return;` makes the program no longer compile. This is
+    // because `clear_cart()` consumes `self`, which ensures that we can no longer
+    // use `shopping` afterwards. No accidental access to the checkout page if
+    // we're not currently shopping!
+    let mut shopping = browsing.add_item(*first);
+    if is_using_mums_credit_card {
+        browsing = shopping.clear_cart();
+        browsing.leave();
+    }
+
+    // This line complains about use of moved value `shopping`.
+    let checkout = shopping.proceed_to_checkout();
+```
+
+```rust
+    // Removing the last `return;` makes the program no longer compile. This is
+    // because `cancel_checkout()` consumes `self`, which ensures that we can no
+    // longer use `checkout` afterwards. No accidental payment if we're not in
+    // the checkout step anymore!
+    let checkout = shopping.proceed_to_checkout();
+    if forgot_my_wallet {
+        shopping = checkout.cancel_checkout();
+        browsing = shopping.clear_cart();
+        browsing.leave();
+    }
+
+    // This line complains about use of moved value `checkout`.
+    checkout.finalise_payment();
+```
+
+As shown in the three code blocks above, the methods consuming `self` ensures that
+values that are "stale" (in a state we have transitioned out from) can no longer be used,
+accidentally or not. This prevents the program from entering an incoherent state,
+eliminating bugs like being able to proceed with payment with an empty cart!
+
+## Outro
+
+Overall, implementing typestates has been really fun and educational, and the benefits
+are immediately obvious in my opinion. Devs working on this (simple) program can rest
+easy knowing that the program cannot (easily) stray away from its intended paths,
+and that any invalid state transitions will be met with a compile error (no sneaky
+bugs escaping to prod).
+
+(Over)Using this pattern might be too impractical in bigger systems though. I can
+see how the mass consuming of `self`, although needed to prevent incoherent states,
+can lead to lots of boilerplate and hoops to be jumped through with reassignments
+all over.
+
+I've seen people talk online about adding more formal "state machine" capabilities to
+enums in Rust, but nothing major has really materialised as far as I know (at the
+time of writing)? Maybe in the future Rust would add more constructs for even more
+static guarantees of constraints, but that's at it for this exploration for now!
 
 ## Readings
 
