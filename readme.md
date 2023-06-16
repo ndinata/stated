@@ -9,7 +9,12 @@ concept in Rust.
 
 ## Table of contents
 
-TODO: add ToC
+- [Motivation and context](#motivation-and-context)
+  - [Why](#why)
+  - [What](#what)
+- [The code](#the-code)
+- [Results](#results)
+- [Readings](#readings)
 
 ## Motivation and context
 
@@ -40,7 +45,7 @@ finalise the purchase. A rough sketch of the state machine is depicted below.
 The main objective here is to explore using typestates to implement the model, such that we would be able
 to **statically** validate that we are only using valid transitions between the different states.
 
-## The Code
+## The code
 
 The source code is available in [`src/`](./src/), but if you'd prefer to read
 everything here on this document instead, feel free to expand the sections below.
