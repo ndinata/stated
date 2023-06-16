@@ -7,6 +7,10 @@ concept in Rust v1.70.
 
 ###### <sup>+</sup>it also means there may be some inaccurate understanding on my part as i'm still familiarising myself with the topic
 
+> TLDR; typestates can be incorporated in Rust code to provide static enforcement of
+> valid state transitions. This can lead to the elimination of certain kinds of bugs,
+> although at a cost of making the API a bit more complex and verbose.
+
 ## Table of contents
 
 - [Motivation and context](#motivation-and-context)
@@ -284,48 +288,48 @@ We also mentioned earlier the `return;` statements ensure that state transitions
 of one another. To make the code _not_ compile, an easy way is removing the `return;`s.
 
 ```rust
-    // Removing the first `return;` makes the program no longer compile. This is
-    // because `leave()` consumes `self`, which ensures that we can no longer use
-    // `browsing` after we call `leave()` on it. No accidental adding of item after
-    // the program has left that state, pretty cool!
-    let mut browsing = Customer::visit_site();
-    if has_sudden_change_of_plan {
-        browsing.leave();
-    }
+// Removing the first `return;` makes the program no longer compile. This is
+// because `leave()` consumes `self`, which ensures that we can no longer use
+// `browsing` after we call `leave()` on it. No accidental adding of item after
+// the program has left that state, pretty cool!
+let mut browsing = Customer::visit_site();
+if has_sudden_change_of_plan {
+    browsing.leave();
+}
 
-    // This line complains about use of moved value `browsing`.
-    let mut shopping = browsing.add_item(*first);
+// This line complains about use of moved value `browsing`.
+let mut shopping = browsing.add_item(*first);
 ```
 
 ```rust
-    // Removing the second `return;` makes the program no longer compile. This is
-    // because `clear_cart()` consumes `self`, which ensures that we can no longer
-    // use `shopping` afterwards. No accidental access to the checkout page if
-    // we're not currently shopping!
-    let mut shopping = browsing.add_item(*first);
-    if is_using_mums_credit_card {
-        browsing = shopping.clear_cart();
-        browsing.leave();
-    }
+// Removing the second `return;` makes the program no longer compile. This is
+// because `clear_cart()` consumes `self`, which ensures that we can no longer
+// use `shopping` afterwards. No accidental access to the checkout page if
+// we're not currently shopping!
+let mut shopping = browsing.add_item(*first);
+if is_using_mums_credit_card {
+    browsing = shopping.clear_cart();
+    browsing.leave();
+}
 
-    // This line complains about use of moved value `shopping`.
-    let checkout = shopping.proceed_to_checkout();
+// This line complains about use of moved value `shopping`.
+let checkout = shopping.proceed_to_checkout();
 ```
 
 ```rust
-    // Removing the last `return;` makes the program no longer compile. This is
-    // because `cancel_checkout()` consumes `self`, which ensures that we can no
-    // longer use `checkout` afterwards. No accidental payment if we're not in
-    // the checkout step anymore!
-    let checkout = shopping.proceed_to_checkout();
-    if forgot_my_wallet {
-        shopping = checkout.cancel_checkout();
-        browsing = shopping.clear_cart();
-        browsing.leave();
-    }
+// Removing the last `return;` makes the program no longer compile. This is
+// because `cancel_checkout()` consumes `self`, which ensures that we can no
+// longer use `checkout` afterwards. No accidental payment if we're not in
+// the checkout step anymore!
+let checkout = shopping.proceed_to_checkout();
+if forgot_my_wallet {
+    shopping = checkout.cancel_checkout();
+    browsing = shopping.clear_cart();
+    browsing.leave();
+}
 
-    // This line complains about use of moved value `checkout`.
-    checkout.finalise_payment();
+// This line complains about use of moved value `checkout`.
+checkout.finalise_payment();
 ```
 
 As shown in the three code blocks above, the methods consuming `self` ensures that
@@ -343,13 +347,14 @@ bugs escaping to prod).
 
 (Over)Using this pattern might be too impractical in bigger systems though. I can
 see how the mass consuming of `self`, although needed to prevent incoherent states,
-can lead to lots of boilerplate and hoops to be jumped through with reassignments
-all over.
+can lead to lots of boilerplate and hoops to be jumped through in big codebases
+with reassignments all over.
 
 I've seen people talk online about adding more formal "state machine" capabilities to
 enums in Rust, but nothing major has really materialised as far as I know (at the
-time of writing)? Maybe in the future Rust would add more constructs for even more
-static guarantees of constraints, but that's at it for this exploration for now!
+time of writing)? Keen to read more on this area though; maybe in the future Rust
+would add more constructs for even more static guarantees of constraints, but this is
+it for this exploration for now!
 
 ## Readings
 
