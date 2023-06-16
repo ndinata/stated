@@ -1,11 +1,14 @@
 use stated::online_shop::Customer;
 
 fn main() {
-    // This enabls the transition `Browsing` -> `Left` via `.leave()`
+    // This enables the transition `Browsing` -> `Left` via `.leave()`
     let has_sudden_change_of_plan = false;
 
     // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
     let is_using_mums_credit_card = false;
+
+    // This enables the transition `Checkout` -> `Shopping` via `.cancel_checkout()`
+    let forgot_my_wallet = false;
 
     let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];
     let (first, rest_of_items) = catalogue.split_first().unwrap();
@@ -42,6 +45,16 @@ fn main() {
     // The other possible "ending" to the flow, where we actually proceed with
     // checkout and then leave.
     let checkout = shopping.proceed_to_checkout();
+
+    if forgot_my_wallet {
+        // This demonstrates another branch where instead of just going forwards,
+        // we backtrack.
+        shopping = checkout.cancel_checkout();
+        browsing = shopping.clear_cart();
+        browsing.leave();
+        return;
+    }
+
     checkout.finalise_payment();
 
     // This "default" flow results in this output:

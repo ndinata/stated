@@ -1,9 +1,9 @@
 # Typestates (in Rust)
 
 A personal exploration\*<sup>+</sup> of the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
-concept in Rust.
+concept in Rust v1.70.
 
-###### \*exploration means this repo contains more text/writeup than code, so strap in for some long-ish read :\)
+###### \*exploration means this repo focuses on the writeup on top of the code, and this README serves as a long-ish report on the results
 
 ###### <sup>+</sup>it also means there may be some inaccurate understanding on my part as i'm still familiarising myself with the topic
 
@@ -14,6 +14,8 @@ concept in Rust.
   - [What](#what)
 - [The code](#the-code)
 - [Results](#results)
+  - [Valid state transitions](#valid-state-transitions)
+  - [Invalid state transitions](#invalid-state-transitions)
 - [Readings](#readings)
 
 ## Motivation and context
@@ -47,8 +49,9 @@ to **statically** validate that we are only using valid transitions between the 
 
 ## The code
 
-The source code is available in [`src/`](./src/), but if you'd prefer to read
-everything here on this document instead, feel free to expand the sections below.
+The source code is available in [`src/`](./src/), but if you'd prefer to read everything
+here on this document instead, feel free to expand the sections below. More bite-sized
+chunks of code with explanation are also available in the [Results](#results) section.
 
 <details>
 <summary>The library (implementation of the state machine)</summary>
@@ -172,6 +175,9 @@ fn main() {
     // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
     let is_using_mums_credit_card = false;
 
+    // This enables the transition `Checkout` -> `Shopping` via `.cancel_checkout()`
+    let forgot_my_wallet = false;
+
     let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];
     let (first, rest_of_items) = catalogue.split_first().unwrap();
 
@@ -207,6 +213,16 @@ fn main() {
     // The other possible "ending" to the flow, where we actually proceed with
     // checkout and then leave.
     let checkout = shopping.proceed_to_checkout();
+
+    if forgot_my_wallet {
+        // This demonstrates another branch where instead of just going forwards,
+        // we backtrack.
+        shopping = checkout.cancel_checkout();
+        browsing = shopping.clear_cart();
+        browsing.leave();
+        return;
+    }
+
     checkout.finalise_payment();
 
     // This "default" flow results in this output:
@@ -226,7 +242,27 @@ fn main() {
 
 ## Results
 
-TODO: add writeup on results
+Earlier we mentioned that the main objective of this exploration is to _statically_ validate
+state transitions. To be more precise, that means the following two conditions have to hold:
+
+- if all state transitions used are valid, the program should compile, and
+- if at least one invalid state transation is used, the program should _not_ compile
+
+Let's start with the first one, as it's more straightforward.
+
+### Valid state transitions
+
+The main program (in the [code](#the-code) section) only uses valid transitions and it
+compiles — our job here is done 😎
+
+No, really — even if we flip around the boolean values at the top of the main function,
+the `return;` statements in the `if` blocks ensure that we only ever:
+
+- `leave()` **OR** `add_item()` to leave the "Browsing" state,
+- `clear_cart()` **OR** `proceed_to_checkout()` to leave the "Shopping" state, and
+- `cancel_checkout()` **OR** `finalise_payment()` to leave the "Checkout" state
+
+### Invalid state transitions
 
 ## Readings
 
