@@ -259,16 +259,16 @@ Earlier we mentioned that the main objective of this exploration is to _statical
 state transitions. To be more precise, that means the following two conditions have to hold:
 
 - if all state transitions used are valid, the program should compile, and
-- if at least one invalid state transation is used, the program should _not_ compile
+- if at least one invalid state transition is used, the program should _not_ compile
 
 Let's start with the first one, as it's more straightforward.
 
 ### Valid state transitions
 
-The main program (in the [code](#the-code) section) only uses valid transitions and it
-compiles — our job here is done 😎
+The main program (you can access it in [the code section](#the-code)) only uses valid
+transitions and it compiles — our job here is done 😎
 
-No, really — even if we flip around the boolean values at the top of the main function,
+No, really — even if we toggle the boolean values at the top of the main function,
 the `return;` statements in the `if` blocks ensure that we only ever:
 
 - `leave()` **OR** `add_item()` to leave the "Browsing" state,
