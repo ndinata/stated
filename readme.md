@@ -1,7 +1,13 @@
 # Typestates (in Rust)
 
-An exploration of the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
+A personal exploration\*<sup>+</sup> of the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
 concept in Rust.
+
+###### \*exploration means this repo contains more text/writeup than code, so strap in for some long-ish read :\)
+
+###### <sup>+</sup>it also means there may be some inaccurate understanding on my part as i'm still familiarising myself with the topic
+
+## Table of contents
 
 TODO: add ToC
 
@@ -9,86 +15,38 @@ TODO: add ToC
 
 ### Why?
 
-I was... TODO
+When I first encountered [SPARK Ada](https://www.adacore.com/about-spark) in my uni class on high-integrity systems
+engineering, I was amazed by some of the property guarantees that its static analysis could provide with its "ghost
+code" annotations. Around this time I was also starting to look into Rust, notorious for its explicit ownership model
+and strong type system, and these experiences solidified my belief that we should be able to encode as many desirable
+properties and assumptions of a system as possible into source code that our tools (type checker, linter, compiler etc.)
+can verify for us statically: either during write time or build/compile time.
+
+Fast forward to a more recent time, I was reading about
+[how to link Rust code with C++ code](https://docs.rust-embedded.org/book/interoperability/rust-with-c.html)
+and noticed the ["Static Guarantees"](https://docs.rust-embedded.org/book/static-guarantees/index.html) section of
+the document. I then read the section on "typestates" and how the pattern can be used to enforce valid state
+transitions... at compile time!! Being the fan of static guarantees that I am, I of course had to play around
+with it :\)
 
 ### What?
 
-The flow we are modelling... TODO
+The state machine that we are representing in this exploration is a simple model of an online shopping flow.
+A customer visits an online store, adds some items to the cart if they want, and then finally checks out to
+finalise the purchase. A rough sketch of the state machine is depicted below.
 
 ![state machine model](./online_store_state_machine.png)
 
+The main objective here is to explore using typestates to implement the model, such that we would be able
+to **statically** validate that we are only using valid transitions between the different states.
+
 ## The Code
 
-The source code is available in [`src/`](./src/), or if you'd prefer to read
+The source code is available in [`src/`](./src/), but if you'd prefer to read
 everything here on this document instead, feel free to expand the sections below.
 
 <details>
-<summary>The application (how we use the state machine)</summary>
-
-```rust
-use stated::online_shop::Customer;
-
-fn main() {
-    // This enabls the transition `Browsing` -> `Left` via `.leave()`
-    let has_sudden_change_of_plan = false;
-
-    // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
-    let is_using_mums_credit_card = false;
-
-    let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];
-    let (first, rest_of_items) = catalogue.split_first().unwrap();
-
-    // Entry point of the flow: start with "Browsing".
-    let mut browsing = Customer::visit_site();
-
-    if has_sudden_change_of_plan {
-        // One possible transition from "Browsing".
-        browsing.leave();
-        return;
-    }
-
-    // The other possible transition from "Browsing".
-    let mut shopping = browsing.add_item(*first);
-
-    for item in rest_of_items {
-        // This is just some arbitrary logic to exhibit using both `add_item()`
-        // and `pop_item()`.
-        if item % 2 == 0 {
-            shopping = shopping.add_item(*item);
-        } else {
-            shopping = shopping.pop_item();
-        }
-    }
-
-    if is_using_mums_credit_card {
-        // One possible "ending" to the flow, via clearing the cart and just leaving.
-        browsing = shopping.clear_cart();
-        browsing.leave();
-        return;
-    }
-
-    // The other possible "ending" to the flow, where we actually proceed with
-    // checkout and then leave.
-    let checkout = shopping.proceed_to_checkout();
-    checkout.finalise_payment();
-
-    // This "default" flow results in this output:
-    // Hi site!
-    // Added 20 to cart ([20])
-    // Added 42 to cart ([20, 42])
-    // Added 36 to cart ([20, 42, 36])
-    // Removed 36 from cart ([20, 42])
-    // Removed 42 from cart ([20])
-    // Added 100 to cart ([20, 100])
-    // Proceeding to checkout.
-    // Done paying for the items, bye site!
-}
-```
-
-</details>
-
-<details>
-<summary>The library (model of the state machine)</summary>
+<summary>The library (implementation of the state machine)</summary>
 
 ```rust
 pub mod online_shop {
@@ -196,7 +154,77 @@ pub mod online_shop {
 
 </details>
 
+<details>
+<summary>The application (how we use the state machine)</summary>
+
+```rust
+use stated::online_shop::Customer;
+
+fn main() {
+    // This enables the transition `Browsing` -> `Left` via `.leave()`
+    let has_sudden_change_of_plan = false;
+
+    // This enables the transition `Shopping` -> `Browsing` via `.clear_cart()`
+    let is_using_mums_credit_card = false;
+
+    let catalogue: Vec<u8> = vec![20, 42, 36, 13, 71, 100];
+    let (first, rest_of_items) = catalogue.split_first().unwrap();
+
+    // Entry point of the flow: start with "Browsing".
+    let mut browsing = Customer::visit_site();
+
+    if has_sudden_change_of_plan {
+        // One possible transition from "Browsing".
+        browsing.leave();
+        return;
+    }
+
+    // The other possible transition from "Browsing".
+    let mut shopping = browsing.add_item(*first);
+
+    for item in rest_of_items {
+        // This is just some arbitrary logic to exhibit using both `add_item()`
+        // and `pop_item()`.
+        if item % 2 == 0 {
+            shopping = shopping.add_item(*item);
+        } else {
+            shopping = shopping.pop_item();
+        }
+    }
+
+    if is_using_mums_credit_card {
+        // One possible "ending" to the flow, via clearing the cart and just leaving.
+        browsing = shopping.clear_cart();
+        browsing.leave();
+        return;
+    }
+
+    // The other possible "ending" to the flow, where we actually proceed with
+    // checkout and then leave.
+    let checkout = shopping.proceed_to_checkout();
+    checkout.finalise_payment();
+
+    // This "default" flow results in this output:
+    // Hi site!
+    // Added 20 to cart ([20])
+    // Added 42 to cart ([20, 42])
+    // Added 36 to cart ([20, 42, 36])
+    // Removed 36 from cart ([20, 42])
+    // Removed 42 from cart ([20])
+    // Added 100 to cart ([20, 100])
+    // Proceeding to checkout.
+    // Done paying for the items, bye site!
+}
+```
+
+</details>
+
+## Results
+
+TODO: add writeup on results
+
 ## Readings
 
+- https://docs.rust-embedded.org/book/static-guarantees/typestate-programming.html
 - https://willcrichton.net/rust-api-type-patterns/typestate.html
 - https://blog.yoshuawuyts.com/state-machines-3/
