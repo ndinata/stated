@@ -1,15 +1,14 @@
 # Typestates (in Rust)
 
-A personal exploration\*<sup>+</sup> of the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
-concept in Rust v1.70.
+An exploration\* of using the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
+pattern to statically validate a simple online shopping flow. Implemented in Rust v1.70.
 
-###### \*exploration means this repo focuses on the writeup on top of the code, and this README serves as a long-ish report on the results
+###### _\*Exploration means this repo focuses on the writeup on top of the code, and this README serves as a long-ish report on the results. There may be inaccuracies as i'm still familiarising myself with the topic; corrections welcome!_
 
-###### <sup>+</sup>it also means there may be some inaccurate understanding on my part as i'm still familiarising myself with the topic
-
-> TLDR; typestates can be incorporated in Rust code to provide static enforcement of
-> valid state transitions. This can lead to the elimination of certain kinds of bugs,
-> although at a cost of making the API a bit more complex and verbose.
+> TLDR; typestates can be incorporated to provide static (compile time) enforcement of valid state
+> transitions in a program flow. This can lead to the elimination of certain kinds of bugs, resulting in
+> a more robust program and an easier to reason about codebase. The downside is the cost of the API
+> being slightly more complex and verbose, as well as its potential impracticality in larger systems.
 
 ## Table of contents
 
