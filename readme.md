@@ -1,21 +1,20 @@
 # Typestates (in Rust)
 
-An exploration\* of using the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
+Exploring the application of the [typestate](https://en.wikipedia.org/wiki/Typestate_analysis)
 pattern to statically validate a simple online shopping flow. Implemented in Rust v1.70.
 
-###### _\*Exploration means this repo focuses on the writeup on top of the code, and this README serves as a long-ish report on the results. There may be inaccuracies as i'm still familiarising myself with the topic; corrections welcome!_
-
-> TLDR; typestates can be incorporated to provide static (compile time) enforcement of valid state
-> transitions in a program flow. This can lead to the elimination of certain kinds of bugs, resulting in
-> a more robust program and an easier to reason about codebase. The downside is the cost of the API
-> being slightly more complex and verbose, as well as its potential impracticality in larger systems.
+**TLDR;** typestates can be incorporated to provide static (compile time) enforcement
+of valid state transitions in a program flow. This can lead to the elimination of
+certain classes of bugs, resulting in a more robust program and an easier to reason
+about codebase. The downside is the cost of the API being slightly more complex and
+verbose, as well as its potential impracticality in larger systems.
 
 ## Table of contents
 
 - [Motivation and context](#motivation-and-context)
   - [Why](#why)
   - [What](#what)
-- [The code](#the-code)
+- [Implementation](#implementation)
 - [Results](#results)
   - [Valid state transitions](#valid-state-transitions)
   - [Invalid state transitions](#invalid-state-transitions)
@@ -26,34 +25,37 @@ pattern to statically validate a simple online shopping flow. Implemented in Rus
 
 ### Why?
 
-When I first encountered [SPARK Ada](https://www.adacore.com/about-spark) in a uni class on high-integrity systems,
-I was amazed by some of the property guarantees that static analysis could provide with its "ghost code"
-annotations. Things that would normally only get caught by a comprehensive test suite in languages like JS
-could be detected by SPARK _before_ the program is even run, which was awesome! Ever since then I've developed
-an interest in ways to encode as many program assumptions and constraints as possible at the type system
-level, so that they can be statically enforced.
+When I first encountered [SPARK Ada](https://www.adacore.com/about-spark) in a uni
+class on high-integrity systems, I was amazed by some of the property guarantees that
+it could provide statically with its "ghost code" annotations. Things that would
+normally only get caught by a comprehensive test suite in languages like JS could be
+detected by SPARK _before_ the program is even run, which was awesome! Ever since then
+I've developed an interest in programs that can encode as many assumptions and
+constraints as possible at the type system level, so that they can be statically enforced.
 
 Fast forward to a more recent time, I was reading about
 [how to link Rust code with C++ code](https://docs.rust-embedded.org/book/interoperability/rust-with-c.html)
-and noticed the ["Static Guarantees"](https://docs.rust-embedded.org/book/static-guarantees/index.html) section of
-the document. I then read the section on "typestates" and how the pattern can be used to enforce valid state
-transitions... at compile time!! I wanted to test out its usage in a real (but simple) program, so here it is :\)
+and noticed the ["Static Guarantees"](https://docs.rust-embedded.org/book/static-guarantees/index.html)
+section of the document. I then read the section on "typestates" and how the pattern
+can be used to enforce valid state transitions at compile time. I wanted to test out
+its usage in a real (but simple) program, so here it is 😊
 
 ### What?
 
-The state machine that we are representing in this exploration is a simple model of an online shopping flow.
-A customer visits an online store, adds some items to the cart if they want, and then finally checks out to
-finalise the purchase. A rough sketch of the state machine is depicted below.
+The state machine that we're representing in this exploration is a simple model of
+an online shopping flow. A customer visits an online store, adds some items to the
+cart if they want, and then finally checks out to finalise the purchase. A rough sketch
+of the state machine is depicted below.
 
 ![state machine model](./online_store_state_machine.png)
 
-The main objective here is to explore using typestates to implement the model, such that we would be able
-to **statically** validate that we are only using valid transitions between the different states.
+The main objective here is to explore using typestates to implement the model, such that
+we would be able to **statically** validate that we are only using valid state transitions.
 
-## The code
+## Implementation
 
 The source code is available in [`src/`](./src/), but if you'd prefer to read everything
-here on this document instead, feel free to expand the sections below. More bite-sized
+here on this readme instead, feel free to expand the sections below. More bite-sized
 chunks of code with explanation are also available in the [Results](#results) section.
 
 <details>
@@ -264,11 +266,9 @@ Let's start with the first one, as it's more straightforward.
 
 ### Valid state transitions
 
-The main program (you can access it in [the code section](#the-code)) only uses valid
-transitions and it compiles — our job here is done 😎
-
-No, really — even if we toggle the boolean values at the top of the main function,
-the `return;` statements in the `if` blocks ensure that we only ever:
+The main program only uses valid transitions and it compiles — our job here is done 😎
+Even if we toggle the boolean values at the top of the main function, the `return;`
+statements in the `if` blocks ensure that we only ever:
 
 - `leave()` **OR** `add_item()` to leave the "Browsing" state,
 - `clear_cart()` **OR** `proceed_to_checkout()` to leave the "Shopping" state, and
@@ -281,10 +281,10 @@ Because methods are implemented on specific typestates (`Customer<Browsing>`,
 access to methods of the other states, as shown in the picture below. This prevents
 bugs where a state uses a transition that is not defined for it!
 
-![only_self_self_impl_methods](./only_impl_methods.png)
+![screenshot showing list of valid methods](./only_impl_methods.png)
 
-We also mentioned earlier the `return;` statements ensure that state transitions are exclusive
-of one another. To make the code _not_ compile, an easy way is removing the `return;`s.
+We also mentioned earlier the `return;` statements ensure that state transitions are
+exclusive of one another. To make the code _not_ compile, an easy way is removing them.
 
 ```rust
 // Removing the first `return;` makes the program no longer compile. This is
@@ -352,8 +352,7 @@ with reassignments all over.
 I've seen people talk online about adding more formal "state machine" capabilities to
 enums in Rust, but nothing major has really materialised as far as I know (at the
 time of writing)? Keen to read more on this area though; maybe in the future Rust
-would add more constructs for even more static guarantees of constraints, but this is
-it for this exploration for now!
+would add more constructs for even more static guarantees of constraints.
 
 ## Readings
 
